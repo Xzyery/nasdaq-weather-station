@@ -112,11 +112,6 @@ if __name__ == '__main__':
         update_metrics()
         print("Done.")
         sys.exit(0)
-
-    # Initial load if empty
-    if not args.skip_update and is_data_stale():
-        print("Initializing data (first run or stale data)...")
-        update_metrics()
     
     print("Starting Flask Server on port 5000...")
     app.run(host='0.0.0.0', port=5000)
