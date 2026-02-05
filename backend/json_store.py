@@ -209,7 +209,7 @@ def add_user_access(user_id: int, module: str, sponsor_code: str):
             'module': module,
             'sponsor_code': sponsor_code.upper(),
             'activated_at': datetime.utcnow().isoformat(),
-            'expires_at': None  # 永久有效
+            'expires_at': (datetime.utcnow() + timedelta(days=30)).isoformat()  # 有效期30天
         })
         
         _save_json(USER_ACCESS_FILE, all_access)
@@ -246,9 +246,40 @@ def remove_user_access(user_id: int, module: str = None) -> List[str]:
 
 
 def has_module_access(user_id: int, module: str) -> bool:
-    """检查用户是否有模块访问权限"""
-    accesses = get_user_access(user_id)
-    return any(a['module'] == module for a in accesses)
+    """检查用户是否有模块访问权限（处理过期）"""
+    with _lock:
+        all_access = get_all_user_access()
+        user_key = str(user_id)
+        
+        if user_key not in all_access:
+            return False
+            
+        now = datetime.utcnow()
+        active_access = []
+        has_access = False
+        
+        for access in all_access[user_key]:
+            if access['module'] == module:
+                expires_at = access.get('expires_at')
+                if not expires_at: # 旧的永久权限
+                    active_access.append(access)
+                    has_access = True
+                else:
+                    if isinstance(expires_at, str):
+                        expires_at = datetime.fromisoformat(expires_at.replace('Z', ''))
+                    
+                    if expires_at > now:
+                        active_access.append(access)
+                        has_access = True
+            else:
+                active_access.append(access)
+        
+        # 如果有变动（过期了），保存
+        if len(active_access) < len(all_access[user_key]):
+            all_access[user_key] = active_access
+            _save_json(USER_ACCESS_FILE, all_access)
+            
+        return has_access
 
 
 def get_user_activated_modules(user_id: int) -> List[str]:

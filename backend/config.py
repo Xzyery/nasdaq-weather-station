@@ -14,17 +14,17 @@ TRIAL_DAYS = 7  # 试用期天数
 MODULE_CONFIG = {
     'nasdaq': {
         'name': '纳斯达克气象站',
-        'sponsor_link': 'https://www.bilibili.com/',
+        'sponsor_link': 'https://www.w7r.cn/liebiao/9196B8BFBDC4B698',
         'color': 'indigo'
     },
     'sp500': {
         'name': '标普500气象站',
-        'sponsor_link': 'https://fred.stlouisfed.org/series/INDPRO',
+        'sponsor_link': 'https://www.w7r.cn/liebiao/9196B8BFBDC4B698',
         'color': 'blue'
     },
     'gold': {
         'name': '黄金宏观气象站',
-        'sponsor_link': 'https://im.qq.com/index/#/',
+        'sponsor_link': 'https://www.w7r.cn/liebiao/9196B8BFBDC4B698',
         'color': 'yellow'
     }
 }
