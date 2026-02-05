@@ -1,305 +1,82 @@
-# 部署指南
+# 纳斯达克宏观气象站 - 部署指南 (Gitee 镜像方案)
 
-## 架构说明
+本方案专为**国内服务器（阿里云/腾讯云等）**设计，使用 Gitee 作为高速镜像，解决 GitHub 访问不稳定的问题。
+
+## 🏗️ 架构原理
 
 ```
-┌─────────────┐      定时运行       ┌──────────────┐
-│   GitHub    │  ←──────────────  │ GitHub       │
-│  Repository │                   │  Actions     │
-└──────┬──────┘                   └──────────────┘
-       │                                 │
-       │ git pull                        │ 获取 FRED 数据
-       │ 拉取数据库                       │ 更新 .db 文件
-       │                                 │ 自动提交
-       ↓                                 ↓
-┌─────────────┐
-│  阿里云      │
-│  服务器      │
-└─────────────┘
+GitHub Actions (每天 09:00)
+    ↓ (获取数据 & 提交)
+GitHub 仓库
+    ↓ (自动同步推送)
+Gitee 仓库 (国内镜像)
+    ↓ (极速拉取)
+阿里云服务器 (每小时自动更新)
 ```
 
-## 第一步：GitHub 设置
+---
 
-### 1. 创建 GitHub 仓库
+## 🚀 部署步骤
+
+### 第一步：Gitee 准备（约 3 分钟）
+
+1. 注册/登录 [Gitee (码云)](https://gitee.com)
+2. 创建新仓库：`nasdaq-weather-station`
+3. 记录仓库地址，例如：`https://gitee.com/你的用户名/nasdaq-weather-station.git`
+
+### 第二步：配置 GitHub（约 2 分钟）
+
+1. 进入 GitHub 仓库的 **Settings** → **Secrets and variables** → **Actions**
+2. 添加以下 Repository Secrets：
+
+| Name | Value | 说明 |
+|------|-------|------|
+| `GITEE_REPO` | `你的用户名/nasdaq-weather-station` | 不带 https:// |
+| `GITEE_USERNAME` | 你的 Gitee 手机号/邮箱 | 用于认证 |
+| `GITEE_PASSWORD` | 你的 Gitee 密码 | 用于认证 |
+
+### 第三步：阿里云服务器一键部署（约 10 分钟）
+
+1. SSH 登录到你的阿里云服务器
+2. 运行一键部署脚本：
 
 ```bash
-cd "c:\Users\bxw\Desktop\纳斯达克宏观气象站"
-git init
-git add .
-git commit -m "Initial commit: 纳斯达克宏观气象站"
-git branch -M main
-git remote add origin https://github.com/你的用户名/nasdaq-weather-station.git
-git push -u origin main
+bash <(curl -s https://raw.githubusercontent.com/你的GitHub用户名/nasdaq-weather-station/main/deploy_aliyun.sh)
 ```
+*(注意：将 URL 中的 `你的GitHub用户名` 替换为实际用户名)*
 
-### 2. 启用 GitHub Actions
+3. 脚本执行过程中，会提示输入你的 **Gitee 仓库地址**。
 
-1. 进入你的 GitHub 仓库
-2. 点击 **Settings** → **Actions** → **General**
-3. 在 "Workflow permissions" 中选择：
-   - ✅ **Read and write permissions**
-   - ✅ **Allow GitHub Actions to create and approve pull requests**
-4. 点击 **Save**
+---
 
-### 3. 测试自动化
+## 🔄 日常维护
 
-- 进入 **Actions** 标签
-- 点击 **Update FRED Data** workflow
-- 点击 **Run workflow** → **Run workflow** 手动触发测试
+### 自动更新机制
+- **GitHub Actions**：每天北京时间 09:00 自动运行，获取最新 FRED 数据并推送到 Gitee。
+- **服务器**：每小时第 5 分钟自动从 Gitee 拉取最新数据并重启服务。
 
-## 第二步：阿里云服务器部署
-
-### 1. 服务器环境准备
+### 常用运维命令
 
 ```bash
-# SSH 登录到阿里云服务器
-ssh root@你的服务器IP
-
-# 安装依赖
-yum update -y
-yum install -y git python3 python3-pip nginx
-
-# 安装 Node.js（用于前端构建）
-curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-yum install -y nodejs
-```
-
-### 2. 克隆项目
-
-```bash
-cd /opt
-git clone https://github.com/你的用户名/nasdaq-weather-station.git
-cd nasdaq-weather-station
-```
-
-### 3. 后端部署
-
-```bash
-cd backend
-
-# 创建虚拟环境
-python3 -m venv venv
-source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 创建必要的数据目录
-mkdir -p data/txt_codes
-
-# 创建空的 JSON 文件（如果不存在）
-echo '{}' > data/users.json
-echo '{}' > data/sponsor_codes.json
-echo '{}' > data/user_access.json
-
-# 生成赞助码
-python scripts/generate_sponsor_codes.py
-```
-
-### 4. 使用 systemd 管理后端服务
-
-创建服务文件：
-
-```bash
-sudo nano /etc/systemd/system/nasdaq-backend.service
-```
-
-内容：
-
-```ini
-[Unit]
-Description=Nasdaq Weather Station Backend
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/nasdaq-weather-station/backend
-Environment="PATH=/opt/nasdaq-weather-station/backend/venv/bin"
-ExecStart=/opt/nasdaq-weather-station/backend/venv/bin/python app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-启动服务：
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable nasdaq-backend
-sudo systemctl start nasdaq-backend
-sudo systemctl status nasdaq-backend
-```
-
-### 5. 前端构建
-
-```bash
-cd /opt/nasdaq-weather-station
-
-# 安装依赖
-npm install
-
-# 构建生产版本
-npm run build
-```
-
-### 6. Nginx 配置
-
-```bash
-sudo nano /etc/nginx/conf.d/nasdaq.conf
-```
-
-内容：
-
-```nginx
-server {
-    listen 80;
-    server_name 你的域名或IP;
-
-    # 前端静态文件
-    location / {
-        root /opt/nasdaq-weather-station/dist;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # 后端 API 代理
-    location /api {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-```
-
-启动 Nginx：
-
-```bash
-sudo nginx -t
-sudo systemctl enable nginx
-sudo systemctl restart nginx
-```
-
-## 第三步：自动更新数据
-
-### 在服务器上设置定时拉取
-
-创建更新脚本：
-
-```bash
-nano /opt/nasdaq-weather-station/update_data.sh
-```
-
-内容：
-
-```bash
-#!/bin/bash
-cd /opt/nasdaq-weather-station
-git pull origin main
-sudo systemctl restart nasdaq-backend
-echo "$(date): Data updated" >> /var/log/nasdaq-update.log
-```
-
-赋予执行权限：
-
-```bash
-chmod +x /opt/nasdaq-weather-station/update_data.sh
-```
-
-添加到 crontab（每小时检查一次）：
-
-```bash
-crontab -e
-```
-
-添加：
-
-```cron
-# 每小时的第5分钟检查数据更新
-5 * * * * /opt/nasdaq-weather-station/update_data.sh
-```
-
-## 第四步：防火墙配置
-
-```bash
-# 开放 80 端口
-firewall-cmd --permanent --add-service=http
-firewall-cmd --reload
-
-# 或者如果没有 firewalld
-iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-```
-
-## 监控和维护
-
-### 查看后端日志
-
-```bash
-sudo journalctl -u nasdaq-backend -f
-```
-
-### 查看 Nginx 日志
-
-```bash
-tail -f /var/log/nginx/error.log
-tail -f /var/log/nginx/access.log
-```
-
-### 手动更新数据
-
-```bash
-cd /opt/nasdaq-weather-station
-git pull origin main
-sudo systemctl restart nasdaq-backend
-```
-
-## 数据流程总结
-
-1. **GitHub Actions**（每天 UTC 01:00 / 北京时间 09:00）
-   - 运行 `standalone_fetcher.py`
-   - 从 FRED 获取最新数据
-   - 更新 `macro_weather_v3.db`
-   - 自动提交并推送到 GitHub
-
-2. **阿里云服务器**（每小时第5分钟）
-   - 运行 `git pull` 拉取最新代码和数据
-   - 重启后端服务加载新数据
-   - 用户访问网站获取最新数据
-
-## 故障排查
-
-### GitHub Actions 失败
-
-- 检查 Actions 日志
-- 确认 workflow permissions 设置正确
-- 验证 FRED API 是否可访问
-
-### 服务器无法拉取数据
-
-```bash
-# 检查 Git 连接
-cd /opt/nasdaq-weather-station
-git fetch origin
-
-# 检查服务状态
-sudo systemctl status nasdaq-backend
-
-# 检查网络
-curl -I https://api.github.com
-```
-
-### 数据未更新
-
-```bash
-# 查看更新日志
-cat /var/log/nasdaq-update.log
-
-# 手动触发更新
+# 手动更新数据
 /opt/nasdaq-weather-station/update_data.sh
+
+# 查看更新日志
+tail -f /var/log/nasdaq-update.log
+
+# 查看后端日志
+journalctl -u nasdaq-backend -f
+
+# 重启服务
+systemctl restart nasdaq-backend
 ```
+
+### 故障排查
+
+**Q: GitHub Actions 显示 Gitee 推送失败？**
+- 检查 `GITEE_PASSWORD` 是否正确。
+- 检查 Gitee 仓库是否已存在。
+
+**Q: 服务器没有自动更新？**
+- 运行 `cat /var/log/nasdaq-update.log` 查看错误原因。
+- 检查 Gitee 仓库中 `backend/macro_weather_v3.db` 是否为最新时间。

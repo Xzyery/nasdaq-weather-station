@@ -83,31 +83,14 @@ npm run dev
 
 ## 📦 生产部署
 
-📖 **[选择适合你的部署方案](DEPLOYMENT_GUIDE.md)** - 快速决策指南
+我们采用 **GitHub Actions + Gitee 镜像** 方案，以解决国内服务器访问 GitHub 不稳定的问题。
 
-### 国外服务器
-详细部署指南请查看 [README_DEPLOYMENT.md](README_DEPLOYMENT.md) 或 [QUICK_START.md](QUICK_START.md)
+📄 **详细部署教程**：[README_DEPLOYMENT.md](README_DEPLOYMENT.md)
 
-### 🇨🇳 国内服务器（阿里云等）
-**重要**：国内服务器访问 GitHub 可能不稳定，请查看：
-- **[CHINA_DEPLOYMENT.md](CHINA_DEPLOYMENT.md)** - 国内部署专用方案
-  - ⭐⭐⭐⭐⭐ 方案一：Gitee 镜像（推荐，免费且稳定）
-  - ⭐⭐⭐⭐ 方案二：阿里云 OSS 存储
-  - ⭐⭐⭐ 方案三：GitHub 代理
+### 简易流程
+1. **GitHub**：配置 Actions 自动推送到 Gitee。
+2. **服务器**：运行一键脚本从 Gitee 部署。
 
-### 快速测试
-在服务器上运行网络测试，自动推荐最佳方案：
-```bash
-bash test_network.sh
-```
-
-### 快速部署摘要
-
-1. **GitHub 设置**：启用 Actions 并配置 workflow permissions
-2. **服务器准备**：安装 Python、Node.js、Nginx
-3. **后端部署**：使用 systemd 管理服务
-4. **前端构建**：npm run build 并配置 Nginx
-5. **自动更新**：设置 crontab 定时拉取数据
 
 ## 🗂️ 项目结构
 
