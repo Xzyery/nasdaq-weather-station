@@ -18,26 +18,6 @@ CORS(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(sponsor_bp)
 
-def is_data_stale():
-    session = Session()
-    try:
-        last_update = session.query(Metric.last_updated).first()
-        if not last_update or not last_update[0]: 
-            print("[is_data_stale] No data in database, need to fetch.")
-            return True
-        last_update_aware = last_update[0].replace(tzinfo=datetime.timezone.utc)
-        now = datetime.datetime.now(datetime.timezone.utc)
-        age_seconds = (now - last_update_aware).total_seconds()
-        age_hours = age_seconds / 3600
-        is_stale = age_seconds > 14400  # 4 hours
-        print(f"[is_data_stale] Last update: {last_update[0]}, Age: {age_hours:.2f} hours, Stale: {is_stale}")
-        return is_stale
-    except Exception as e:
-        print(f"[is_data_stale] Error: {e}")
-        return True
-    finally:
-        session.close()
-
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
     """获取仪表盘数据 - 需要认证和模块权限"""
@@ -76,9 +56,6 @@ def get_dashboard():
             logger.error(f"Auth check error: {e}")
     
     # 获取数据（无论是否认证都返回数据，让前端处理权限）
-    if is_data_stale():
-        update_metrics()
-
     session = Session()
     metrics = session.query(Metric).all()
     
