@@ -1,0 +1,15 @@
+[Unit]
+Description=Nasdaq Weather Station Backend
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nasdaq-weather-station/backend
+Environment="PATH=/opt/nasdaq-weather-station/backend/venv/bin"
+ExecStart=/opt/nasdaq-weather-station/backend/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

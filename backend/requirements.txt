@@ -1,0 +1,8 @@
+flask
+flask-cors
+fredapi
+pandas
+sqlalchemy
+PyJWT
+bcrypt
+python-dotenv

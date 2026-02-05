@@ -1,0 +1,57 @@
+name: Update FRED Data
+
+on:
+  schedule:
+    # 每天 UTC 时间 01:00 运行（北京时间 09:00）
+    - cron: '0 1 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install pandas-datareader sqlalchemy requests
+        
+    - name: Run data fetcher
+      run: |
+        cd backend
+        python standalone_fetcher.py
+        
+    - name: Check if data file changed
+      id: check_changes
+      run: |
+        if git diff --quiet backend/macro_weather_v3.db; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Commit and push if changed
+      if: steps.check_changes.outputs.changed == 'true'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add backend/macro_weather_v3.db
+        git commit -m "Auto update: FRED data $(date +'%Y-%m-%d %H:%M:%S')"
+        git push
+        
+    - name: Sync to Gitee (国内镜像)
+      if: steps.check_changes.outputs.changed == 'true'
+      run: |
+        # 添加 Gitee 远程仓库（如果配置了 GITEE_REPO secret）
+        if [ -n "${{ secrets.GITEE_REPO }}" ]; then
+          git remote add gitee https://${{ secrets.GITEE_USERNAME }}:${{ secrets.GITEE_PASSWORD }}@gitee.com/${{ secrets.GITEE_REPO }}.git || true
+          git push gitee main --force || echo "Gitee push failed, continuing..."
+        fi
