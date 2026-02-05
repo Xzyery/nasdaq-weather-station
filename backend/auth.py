@@ -102,7 +102,13 @@ def get_user_access_info(user: dict) -> dict:
     """获取用户所有模块的访问状态"""
     trial_days_left = json_store.get_trial_days_left(user)
     is_trial_active = json_store.is_trial_active(user)
-    activated_modules = json_store.get_user_activated_modules(user['id'])
+    
+    # 这一步非常重要：get_user_activated_modules 内部应该调用 has_module_access 来触发过期检查
+    activated_modules = []
+    from config import MODULE_CONFIG
+    for module in MODULE_CONFIG.keys():
+        if json_store.has_module_access(user['id'], module):
+            activated_modules.append(module)
     
     return {
         'trial_days_left': trial_days_left,
