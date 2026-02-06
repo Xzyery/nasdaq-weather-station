@@ -1,6 +1,6 @@
 import { User, AuthResponse, LoginCredentials, RegisterCredentials, SponsorLinks } from '../types';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://nasdake.top/api';
 
 // 获取存储的token
 export const getToken = (): string | null => {

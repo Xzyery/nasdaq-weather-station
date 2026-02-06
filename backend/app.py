@@ -19,24 +19,43 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(sponsor_bp)
 
 @app.route('/api/dashboard', methods=['GET'])
-@require_auth
 def get_dashboard():
     """获取仪表盘数据 - 需要认证和模块权限"""
-    user = g.current_user
+    # 检查是否有认证头
+    auth_header = request.headers.get('Authorization')
     module = request.args.get('module', 'nasdaq')  # 默认纳斯达克
     
-    # 检查模块访问权限
-    access_info = check_module_access(user, module)
+    # 如果有认证头，验证权限
+    if auth_header:
+        from auth import decode_token
+        from models import User
+        
+        try:
+            token = auth_header.split(' ')[1] if ' ' in auth_header else auth_header
+            payload = decode_token(token)
+            
+            if payload:
+                session = Session()
+                user = session.query(User).filter_by(id=payload['user_id']).first()
+                
+                if user and user.is_active:
+                    # 检查模块访问权限
+                    access_info = check_module_access(user, module, session)
+                    
+                    if not access_info['allowed']:
+                        session.close()
+                        return jsonify({
+                            'error': '访问受限',
+                            'reason': 'expired',
+                            'message': f'您的{MODULE_CONFIG.get(module, {}).get("name", "该模块")}试用期已结束，请输入赞助码继续使用。',
+                            'sponsor_link': MODULE_CONFIG.get(module, {}).get('sponsor_link', '')
+                        }), 403
+                
+                session.close()
+        except Exception as e:
+            logger.error(f"Auth check error: {e}")
     
-    if not access_info['allowed']:
-        return jsonify({
-            'error': '访问受限',
-            'reason': 'expired',
-            'message': f'您的{MODULE_CONFIG.get(module, {}).get("name", "该模块")}试用期已结束，请输入赞助码继续使用。',
-            'sponsor_link': MODULE_CONFIG.get(module, {}).get('sponsor_link', '')
-        }), 403
-    
-    # 获取数据
+    # 获取数据（无论是否认证都返回数据，让前端处理权限）
     session = Session()
     metrics = session.query(Metric).all()
     
