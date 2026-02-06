@@ -6,4 +6,3 @@ sqlalchemy
 PyJWT
 bcrypt
 python-dotenv
-fredapi
